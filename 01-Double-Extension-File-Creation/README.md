@@ -1,7 +1,7 @@
 # 🐾 Double-Extension File Creation Investigation
 
 ![Severity](https://img.shields.io/badge/Severity-High-red)
-![Verdict](https://img.shields.io/badge/Verdict-Malicious-critical)
+![Verdict](https://img.shields.io/badge/Verdict-True%20Positive-critical)
 ![Status](https://img.shields.io/badge/Status-Closed-success)
 ![MITRE](https://img.shields.io/badge/MITRE-T1036.008-blue)
 
@@ -11,7 +11,9 @@
 
 ## 📋 Overview
 
-This project documents the L1 SOC triage of a **High severity** alert triggered by the creation of a suspicious double-extension file on host `LPT-HR-009`, downloaded via `chrome.exe` by user `S.Conway`.
+This project documents the L1 SOC triage of a **High severity** alert triggered by the creation of a suspicious double-extension file on host `LPT-HR-009`, associated with `chrome.exe` and user `S.Conway`.
+
+The investigation focused on analyzing the alert details, identifying suspicious indicators, performing basic threat-intelligence checks, determining the appropriate verdict, and documenting the findings.
 
 ---
 
@@ -35,10 +37,10 @@ This project documents the L1 SOC triage of a **High severity** alert triggered 
 ```mermaid
 flowchart LR
     A[👤 User S.Conway] -->|Browses web| B[🌐 chrome.exe]
-    B -->|Downloads file| C[frecativideoshd.monster]
-    C -->|Serves payload| D[cats2025.mp4.exe]
-    D -->|Double extension hides .exe| E[⚠️ File appears as video]
-    E -->|If executed| F[💥 Potential Malware Execution]
+    B -->|File retrieved from external URL| C[frecativideoshd.monster]
+    C -->|File creation| D[cats2025.mp4.exe]
+    D -->|Double extension| E[⚠️ Executable disguised as media file]
+    E -->|If executed| F[💥 Potential User Execution]
     style F fill:#ff4d4d,stroke:#900,color:#fff
     style D fill:#ffcc00,stroke:#a67c00
     style C fill:#ffcc00,stroke:#a67c00
@@ -50,10 +52,10 @@ flowchart LR
 
 ### 1️⃣ File Analysis
 
-- The target file `cats2025.mp4.exe` uses a **double extension** technique, relying on the fact that Windows Explorer hides *known file extensions* by default.
-- To an average user, this file would visually appear as **`cats2025.mp4`** — a harmless video file — while it is, in reality, a **Windows executable (`.exe`)**.
-- This is a classic **masquerading** technique used to trick users into executing malicious code disguised as media content.
-- File location (`Downloads` folder, delivered via browser) is consistent with a drive-by / social-engineering download rather than a legitimate application install.
+- The target file `cats2025.mp4.exe` uses a **double-extension** naming technique.
+- The filename contains a media-looking extension (`.mp4`) followed by the actual executable extension (`.exe`).
+- This naming technique can make an executable appear to be a legitimate media file and may be used to trick users into opening it.
+- The file was created in the user's `Downloads` directory and was associated with `chrome.exe`.
 
 **Verdict for this indicator:** 🔴 Suspicious — strong masquerading indicator.
 
@@ -62,31 +64,38 @@ flowchart LR
 ### 2️⃣ URL Analysis
 
 - Source URL: `https://frecativideoshd.monster/cats2025.mp4.exe`
-- The domain `frecativideoshd.monster`:
-  - Uses the **`.monster`** TLD, frequently abused for low-cost, disposable malicious infrastructure.
-  - Combines generic "video streaming" branding (`video`, `hd`) with a random-looking prefix — typical of scam/malware distribution sites impersonating pirated media or "video codec" download pages.
-  - Directly serves an `.exe` file under a filename crafted to look like a video — matching the double-extension lure.
-- No legitimate video streaming service would serve `.mp4` content as a `.exe` binary.
+- The URL was reviewed using VirusTotal.
+- At the time of analysis, the URL received **0/90 detections**.
+- The domain `frecativideoshd.monster` received **0/89 detections**.
+- No useful public search results were identified for the domain during the investigation.
+- The absence of detections does not prove that the URL or domain is benign.
+- The available threat-intelligence checks did not independently confirm the domain as malicious.
 
-**Verdict for this indicator:** 🔴 Malicious — known pattern of malvertising / fake streaming site delivering malware.
+**Verdict for this indicator:** 🟠 Suspicious based on the overall alert context, but not independently confirmed as malicious by the reputation checks performed.
 
 ---
 
 ### 3️⃣ Hash Analysis
 
 - MD5: `14d8486f638375e93cfd240c5dc10b`
-- The hash should be submitted to reputation/sandbox platforms (e.g. VirusTotal, Hybrid Analysis) for confirmation.
-- Combined with the delivery method (fake video site) and the double-extension technique, this hash is consistent with a **generic malware dropper/loader** — commonly distributed through fake streaming or "codec download" campaigns.
+- The MD5 hash was checked using VirusTotal.
+- No useful file detection results were available from the lookup performed.
+- Therefore, the hash could not independently confirm the file as malicious.
 
-**Verdict for this indicator:** 🔴 Malicious (pending/confirmed via threat intel lookup).
+**Verdict for this indicator:** 🟠 Inconclusive.
 
 ---
 
 ### 4️⃣ User and Host Analysis
 
-- Host `LPT-HR-009` is a laptop, consistent with an HR department asset (naming convention suggests HR team).
-- User `S.Conway` initiated the download via normal browsing activity in `chrome.exe` — no evidence of automated/scripted delivery, suggesting a **social engineering** vector (user searching for or clicking a link to "cat videos").
-- No indication (within current evidence) that the file was executed — the alert fired on **file creation**, not process execution. This is a critical distinction for scoping impact.
+- Host: `LPT-HR-009`
+- User: `S.Conway`
+- Process: `chrome.exe`
+- The file was created in the user's `Downloads` directory.
+- The available alert evidence associates the file creation with Chrome and an external URL.
+- The current alert evidence does not show that the executable was launched or executed.
+
+This limits the confirmed scope of the activity to the **file creation stage**.
 
 ---
 
@@ -95,43 +104,144 @@ flowchart LR
 | Tactic | Technique | ID |
 |---|---|---|
 | Defense Evasion | Masquerading: Double File Extension | `T1036.008` |
-| Initial Access | Drive-by Compromise | `T1189` |
-| User Execution | Malicious File (if executed) | `T1204.002` |
+| User Execution | Malicious File | `T1204.002` *(Potential — execution not confirmed)* |
+
+---
+
+## 📸 Evidence
+
+The investigation evidence is documented in the `Evidence/` directory.
+
+### Alert Overview
+
+The original SIEM alert showing the alert name, severity, affected host, user, process, target file, source URL, and MD5 hash.
+
+![Alert Overview](Evidence/alert-overview.png)
+
+### Final Verdict
+
+The final SIEM state after completing the L1 triage:
+
+- **Status:** Closed
+- **Verdict:** True Positive
+- **Assignee:** You (L1)
+
+![Final Verdict](Evidence/final-verdict.png)
+
+---
+
+## 📝 Investigation Summary
+
+The alert was triggered by the creation of a double-extension executable file on host `LPT-HR-009`.
+
+The file was named `cats2025.mp4.exe`, which uses a media-looking extension (`.mp4`) before the actual executable extension (`.exe`). This naming technique can be used to make an executable appear to be a legitimate media file.
+
+The file was associated with `chrome.exe` under the user `S.Conway` and originated from the following external URL:
+
+`https://frecativideoshd.monster/cats2025.mp4.exe`
+
+The associated MD5 hash was:
+
+`14d8486f638375e93cfd240c5dc10b`
+
+Threat-intelligence checks were performed against the URL, domain, and file hash. The URL received **0/90 detections** and the domain received **0/89 detections** at the time of analysis. These results did not independently confirm the indicators as malicious.
+
+However, the alert correctly identified suspicious double-extension file creation activity. The available evidence confirmed the file creation stage, while execution of the executable was not confirmed.
 
 ---
 
 ## ✅ Final Verdict
 
-> ## 🔴 **MALICIOUS — True Positive**
+> ## 🟢 **TRUE POSITIVE**
 
-The combination of:
-- a double-extension filename designed to disguise an executable as a media file,
-- a low-reputation, purpose-built malicious domain, and
-- delivery through casual browsing consistent with social engineering,
+The alert was correctly triggered by the creation of a suspicious double-extension executable file on host `LPT-HR-009`.
 
-confirms this alert as a **true positive malicious file download**, currently contained at the **file creation** stage (no confirmed execution).
+The file `cats2025.mp4.exe` uses a media-looking filename followed by the `.exe` executable extension. The file was associated with `chrome.exe`, user `S.Conway`, an external URL, and an MD5 hash.
+
+Threat-intelligence checks performed during the investigation did not independently confirm the URL, domain, or hash as malicious. However, the alert correctly identified the suspicious double-extension file creation activity.
+
+The alert was therefore classified as a **True Positive** and closed after L1 triage.
+
+**Confirmed scope:** File creation.
+
+**Execution:** Not confirmed by the available alert evidence.
 
 ---
 
 ## 🛠️ Recommended Actions
 
-- [ ] **Isolate** host `LPT-HR-009` from the network immediately.
-- [ ] **Quarantine/delete** the file `cats2025.mp4.exe` before execution.
-- [ ] Confirm via EDR whether the file was **executed** — check process creation logs.
-- [ ] Submit MD5 hash to VirusTotal / sandbox for full detonation analysis.
-- [ ] Block domain `frecativideoshd.monster` at the proxy/firewall/DNS level.
-- [ ] Search the environment for other hosts contacting the same domain (IOC sweep).
-- [ ] Notify user `S.Conway` and provide security awareness reminder on double-extension lures.
-- [ ] Update detection rule to alert on `.mp4.exe`, `.pdf.exe`, `.docx.exe`, etc. patterns organization-wide.
+- [ ] **Confirm** through EDR whether `cats2025.mp4.exe` was executed.
+- [ ] **Quarantine/delete** the file if it is still present, according to the organization's incident response procedure.
+- [ ] Search the environment for the same MD5 hash.
+- [ ] Search for other endpoints that accessed the source domain.
+- [ ] Block the domain if confirmed malicious by the security team.
+- [ ] Notify the affected user and provide security awareness guidance regarding double-extension files.
+- [ ] Escalate to L2/Incident Response if execution or additional malicious activity is identified.
 
 ---
 
 ## 🎓 Lessons Learned
 
-- Double-extension filenames remain an effective and low-effort social engineering technique because Windows hides known extensions by default.
-- Free/uncommon TLDs (e.g. `.monster`, `.xyz`, `.click`) combined with generic "streaming/video" branding are a recurring pattern in malvertising campaigns.
-- Alerting on **file creation** (rather than only execution) provides a valuable earlier detection point in the kill chain.
-- Clear, structured documentation — indicators, verdict, MITRE mapping, and actions — is essential for SOC analyst handoffs and audit trails.
+- Double-extension filenames can be used as a **masquerading technique** to make executable files appear to be legitimate media files.
+- A suspicious filename alone does not prove that a file is malicious; additional evidence and threat-intelligence checks should be considered.
+- A **True Positive alert** means the detection correctly identified the suspicious activity; it does not necessarily mean that malware execution or endpoint compromise has been confirmed.
+- Threat-intelligence results with no detections should be treated as **inconclusive**, rather than proof that an indicator is safe.
+- Distinguishing between **file creation** and **file execution** is important when determining the confirmed scope of an incident.
+- Clear, structured documentation — indicators, investigation steps, verdict, MITRE mapping, and recommended actions — is essential for SOC analyst handoffs and audit trails.
+
+---
+
+## 🔄 SOC L1 Triage Workflow
+
+The alert was handled following a standard SOC L1 triage workflow:
+
+```text
+Alert Received
+      ↓
+Alert Prioritization
+      ↓
+Assigned to L1 Analyst
+      ↓
+Status → In Progress
+      ↓
+Review Alert Details
+      ↓
+Identify Suspicious Indicators
+      ↓
+Threat Intelligence Checks
+      ↓
+Determine Verdict
+      ↓
+Add Analyst Comment
+      ↓
+Status → Closed
+```
+
+---
+
+## 🎯 Investigation Outcome
+
+| Investigation Item | Result |
+|---|---|
+| **Alert Detected** | ✅ Yes |
+| **Double Extension Identified** | ✅ Yes |
+| **External URL Identified** | ✅ Yes |
+| **MD5 Identified** | ✅ Yes |
+| **Threat Intelligence Checked** | ✅ Yes |
+| **Malicious Reputation Confirmed** | ❌ No |
+| **File Execution Confirmed** | ❌ No |
+| **Alert Verdict** | 🟢 True Positive |
+| **Final Status** | 🟢 Closed |
+
+---
+
+## 🧠 Analyst Takeaway
+
+This investigation demonstrates the importance of distinguishing between an alert being a **True Positive** and proving that a system has been fully compromised.
+
+In this case, the SIEM correctly detected suspicious double-extension file creation. The available evidence supported the alert as a **True Positive**, while execution and further compromise were not confirmed.
+
+The investigation therefore remained within the confirmed scope of the available evidence and documented additional actions that could be performed by EDR, L2, or Incident Response teams.
 
 ---
 
